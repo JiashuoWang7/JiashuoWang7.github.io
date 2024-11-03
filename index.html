@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ancient Chinese Dynasty Map with Timeline</title>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.8.1/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.8.1/mapbox-gl.css" rel="stylesheet" />
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #dynastyMap {
+            width: 100vw;
+            height: 100vh;
+        }
+        .timeline {
+            position: absolute;
+            bottom: 10%;
+            left: 5%;
+            right: 5%;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .dynasty {
+            cursor: pointer;
+            padding: 5px 15px;
+            position: relative;
+            transition: transform 0.3s, background-color 0.3s;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .dynasty:hover {
+            background-color: #e8e8e8;
+            transform: scale(1.05);
+            border-radius: 8px;
+        }
+        .tooltip {
+            visibility: hidden;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 5px;
+            padding: 5px;
+            position: absolute;
+            bottom: 35px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1;
+            font-size: 0.8em;
+            width: 120px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .dynasty.active .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        .mapboxgl-popup-content {
+            background: none;
+            box-shadow: none;
+            padding: 0;
+        }
+        .mapboxgl-popup-tip {
+            display: none;
+        }
+        .popup-text {
+            color: #000;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div id="dynastyMap"></div>
+    <div class="timeline" id="timeline"></div>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoiMjU5NTMyNTYzMyIsImEiOiJjbTJ3eno1dXAwY3NpMnBxMzRseTFwYncyIn0.uPzaNNf5cZpsXv_cbuDEVA';
+
+        const map = new mapboxgl.Map({
+            container: 'dynastyMap',
+            style: 'mapbox://styles/mapbox/light-v10',
+            center: [104.1954, 35.8617],
+            zoom: 4.5,
+            minZoom: 4,
+            maxZoom: 7
+        });
+
+        const dynasties = [
+            { name: 'Zhou', period: 'BC:1046-256', startYear: -1046, endYear: -256, link: 'Zhou.html' },
+            { name: 'Qin', period: 'BC:221-206', startYear: -221, endYear: -206, link: 'Qin.html' },
+            { name: 'Han', period: 'AD:202-220', startYear: -202, endYear: 220, link: 'Han.html' },
+            { name: 'Jin', period: 'AD:265-420', startYear: 265, endYear: 420, link: 'Jin.html' },
+            { name: 'Sui', period: 'AD:581-618', startYear: 581, endYear: 618, link: 'Sui.html' },
+            { name: 'Tang', period: 'AD:618-907', startYear: 618, endYear: 907, link: 'Tang.html' },
+            { name: 'Song', period: 'AD:960-1279', startYear: 960, endYear: 1279, link: 'Song.html' },
+            { name: 'Yuan', period: 'AD:1271-1368', startYear: 1271, endYear: 1368, link: 'Yuan.html' },
+            { name: 'Ming', period: 'AD:1368-1644', startYear: 1368, endYear: 1644, link: 'Ming.html' },
+            { name: 'Qing', period: 'AD:1644-1912', startYear: 1644, endYear: 1912, link: 'Qing.html' }
+        ];
+
+        const timeline = document.getElementById('timeline');
+        
+        dynasties.forEach(dynasty => {
+            const dynastyElement = document.createElement('div');
+            dynastyElement.classList.add('dynasty');
+            dynastyElement.innerHTML = `${dynasty.name}<span class="tooltip">${dynasty.period}<br><a href="${dynasty.link}" target="_blank" style="color: #ffffff;">More Info</a></span>`;
+            
+            dynastyElement.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!dynastyElement.classList.contains('active')) {
+                    closeAllTooltips();
+                    dynastyElement.classList.add('active');
+                    showDynasty(dynasty);
+                } else {
+                    dynastyElement.classList.remove('active');
+                    clearDynastyLayer();
+                }
+            });
+            
+            timeline.appendChild(dynastyElement);
+        });
+
+        // Close all tooltips
+        function closeAllTooltips() {
+            document.querySelectorAll('.dynasty').forEach(el => el.classList.remove('active'));
+        }
+
+        // Hide tooltip on outside click
+        document.addEventListener('click', closeAllTooltips);
+
+        function showDynasty(dynasty) {
+            fetch('./china_dynasties_combined.geojson')
+                .then(response => response.json())
+                .then(data => {
+                    const features = data.features.filter(feature => {
+                        const begYear = feature.properties.BEG_YR;
+                        const endYear = feature.properties.END_YR;
+                        return (begYear <= dynasty.endYear && endYear >= dynasty.startYear);
+                    });
+
+                    const geojsonData = {
+                        type: 'FeatureCollection',
+                        features: features
+                    };
+
+                    clearDynastyLayer();
+
+                    map.addSource('dynastyPoints', {
+                        type: 'geojson',
+                        data: geojsonData
+                    });
+
+                    map.addLayer({
+                        id: 'dynastyLayer',
+                        type: 'circle',
+                        source: 'dynastyPoints',
+                        paint: {
+                            'circle-radius': 6,
+                            'circle-color': '#FFA500',
+                            'circle-stroke-width': 1,
+                            'circle-stroke-color': '#ffffff'
+                        }
+                    });
+
+                    map.on('mouseenter', 'dynastyLayer', (e) => {
+                        const coordinates = e.features[0].geometry.coordinates.slice();
+                        const name = e.features[0].properties.NAME_PY;
+
+                        const popup = new mapboxgl.Popup({
+                            closeButton: false,
+                            closeOnClick: false
+                        })
+                        .setLngLat(coordinates)
+                        .setHTML(`<div class="popup-text">${name}</div>`)
+                        .addTo(map);
+
+                        map.on('mouseleave', 'dynastyLayer', () => {
+                            popup.remove();
+                        });
+                    });
+                })
+                .catch(error => console.error('Error loading dynasty points:', error));
+        }
+
+        function clearDynastyLayer() {
+            if (map.getSource('dynastyPoints')) {
+                map.removeLayer('dynastyLayer');
+                map.removeSource('dynastyPoints');
+            }
+        }
+
+        // Load initial dynasty points (e.g., Zhou)
+        showDynasty(dynasties[0]);
+    </script>
+</body>
+</html>
