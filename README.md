@@ -1,4 +1,5 @@
 Map of Ancient Chinese Dynasties
+
 Welcome to the Map of Ancient Chinese Dynasties! This website is designed to showcase the territorial changes, rise and fall of dynasties, 
 and the geographical coverage of each era in Chinese history. Through interactive maps and a timeline feature, you can delve into significant historical periods—from the Zhou and Qin dynasties to the 
 Qing dynasty—exploring the geographic positioning and territorial expansion of each dynasty over the ages. Currently, the website includes pages for the Han, Jin, Ming, Qin, Qing, Song, Sui, Tang, Yuan, 
